@@ -5,9 +5,16 @@
 
 # Claude (Anthropic) ayarları
 claude:
-  model: "claude-haiku-4-5-20251001"   # Maliyet/hız optimize Haiku 4.5
+  # Sohbet + analiz: maliyet için Haiku 4.5. Daha derin muhakeme istersen
+  # buraya "claude-sonnet-4-6" yazıp Sonnet'e geçebilirsin (~3 kat maliyet).
+  chat_model: "claude-haiku-4-5-20251001"
+  # Haber puanlama: yüksek hacimli/basit iş → ucuz Haiku'da kalır
+  scoring_model: "claude-haiku-4-5-20251001"
+  # Brifing/özet metinleri için kullanılan model
+  model: "claude-haiku-4-5-20251001"
   max_tokens: 1024
   temperature: 0.4
+  max_tool_iterations: 6   # Tool use döngüsünde azami tur sayısı (sonsuz döngü koruması)
 
 # Haber tarama ayarları
 news:

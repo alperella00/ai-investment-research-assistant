@@ -124,8 +124,22 @@ def list_users() -> List[Dict[str, Any]]:
 # Portföy işlemleri
 # ─────────────────────────────────────────────
 
-def add_holding(chat_id: int | str, symbol: str, quantity: float, cost: float) -> Dict[str, Any]:
-    """Portföye varlık ekler veya mevcut varlığı ortalamayla günceller."""
+def add_holding(
+    chat_id: int | str,
+    symbol: str,
+    quantity: float,
+    cost: float,
+    manual_price: float | None = None,
+    note: str | None = None,
+) -> Dict[str, Any]:
+    """
+    Portföye varlık ekler veya mevcut varlığı ortalamayla günceller.
+
+    manual_price: yfinance/CoinGecko'da bulunmayan egzotik enstrümanlar
+        (ör. Darphane Altın Sertifikası) için elle girilen güncel fiyat.
+        Verilirse portföy değeri bu fiyattan hesaplanır.
+    note: enstrümanla ilgili serbest açıklama (ör. "BIST darphane sertifikası").
+    """
     user = load_user(chat_id) or create_user(chat_id)
     symbol = symbol.upper()
     for h in user["portfolio"]:
@@ -135,11 +149,21 @@ def add_holding(chat_id: int | str, symbol: str, quantity: float, cost: float) -
             if total_qty > 0:
                 h["cost"] = (h["quantity"] * h["cost"] + quantity * cost) / total_qty
             h["quantity"] = total_qty
+            if manual_price is not None:
+                h["manual_price"] = float(manual_price)
+            if note:
+                h["note"] = note
             save_user(user)
             return user
-    user["portfolio"].append({"symbol": symbol, "quantity": quantity, "cost": cost})
+    holding: Dict[str, Any] = {"symbol": symbol, "quantity": quantity, "cost": cost}
+    if manual_price is not None:
+        holding["manual_price"] = float(manual_price)
+    if note:
+        holding["note"] = note
+    user["portfolio"].append(holding)
     save_user(user)
-    logger.info("%s portföyüne eklendi: %s x%s @%s", chat_id, symbol, quantity, cost)
+    logger.info("%s portföyüne eklendi: %s x%s @%s%s", chat_id, symbol, quantity, cost,
+                " (manuel fiyat)" if manual_price is not None else "")
     return user
 
 

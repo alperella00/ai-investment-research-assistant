@@ -58,7 +58,62 @@ BIST_SYMBOLS = {
     "EREGL", "KCHOL", "SAHOL", "BIMAS", "TUPRS", "PETKM", "FROTO",
     "TOASO", "TCELL", "PGSUS", "KRDMD", "HEKTS", "SASA", "TTKOM",
     "VESTL", "ARCLK", "ENKAI", "KOZAL", "KOZAA", "GUBRF", "ALARK",
+    "OTKAR", "AYGAZ", "KORDS", "BRISA", "CIMSA", "AKSEN", "OYAKC",
 }
+
+# Holding grupları → bağlı BIST hisseleri (KESİN, model tahmin etmesin)
+# Not: ASELSAN bu gruplardan hiçbirine ait DEĞİLDİR (TSKGV/Savunma vakfı).
+HOLDING_GROUPS = {
+    "KOÇ": ["KCHOL", "FROTO", "TOASO", "ARCLK", "TUPRS", "OTKAR", "AYGAZ", "TATGD"],
+    "SABANCI": ["SAHOL", "AKBNK", "KORDS", "BRISA", "CIMSA", "AKSA", "AKSEN", "ENKAI"],
+    "ŞIŞECAM": ["SISE", "TRKCM", "SODA"],
+    "OYAK": ["OYAKC", "EREGL", "KRDMD"],
+    "DOĞUŞ": ["DOAS"],
+    "ECZACIBAŞI": ["ECILC", "ECZYT"],
+}
+
+# Sembol → haber aramasında kullanılacak şirket adı/takma adları
+SYMBOL_ALIASES = {
+    "THYAO": ["TÜRK HAVA YOLLARI", "THY"],
+    "ASELS": ["ASELSAN"],
+    "KCHOL": ["KOÇ HOLDING", "KOÇ"],
+    "TOASO": ["TOFAŞ", "TOFAS"],
+    "FROTO": ["FORD OTOSAN", "FORD OTO"],
+    "ARCLK": ["ARÇELİK", "ARCELIK", "BEKO"],
+    "TUPRS": ["TÜPRAŞ", "TUPRAS"],
+    "OTKAR": ["OTOKAR"],
+    "AYGAZ": ["AYGAZ"],
+    "SAHOL": ["SABANCI HOLDING", "SABANCI"],
+    "AKBNK": ["AKBANK"],
+    "GARAN": ["GARANTİ BBVA", "GARANTİ BANKASI", "GARANTI"],
+    "ISCTR": ["İŞ BANKASI", "IS BANKASI", "İŞBANK"],
+    "SISE": ["ŞİŞECAM", "SISECAM"],
+    "EREGL": ["EREĞLİ DEMİR", "ERDEMİR"],
+    "BIMAS": ["BİM"],
+    "PGSUS": ["PEGASUS"],
+    "SASA": ["SASA POLYESTER"],
+}
+
+
+def symbol_aliases(symbol: str) -> List[str]:
+    """Bir sembol için haber aramasında kullanılacak anahtar kelimeler."""
+    s = symbol.strip().upper().replace(".IS", "")
+    aliases = [s]
+    aliases.extend(SYMBOL_ALIASES.get(s, []))
+    kind, ticker = normalize_symbol(symbol)
+    if kind == "crypto":
+        aliases.append(ticker.upper())  # ör. BITCOIN
+    return aliases
+
+
+def get_group_members(group: str) -> List[str]:
+    """Bir holding grubunun BIST hisselerini döndürür (kesin tablo)."""
+    key = group.strip().upper().replace(" HOLDING", "").replace(" GRUBU", "").strip()
+    # Türkçe büyük harf normalizasyonu için basit eşleme
+    for gname, members in HOLDING_GROUPS.items():
+        if key in gname or gname in key:
+            return [m.strip() for m in members]
+    return []
 
 
 def normalize_symbol(symbol: str) -> Tuple[str, str]:
@@ -103,42 +158,51 @@ def _safe_fast_info(info: Any, *keys: str) -> Optional[Any]:
 
 
 def _get_yf_quote(ticker: str) -> Optional[Dict[str, Any]]:
-    """yfinance üzerinden son fiyat + günlük değişim çeker."""
+    """
+    yfinance üzerinden son fiyat + günlük değişim çeker.
+
+    ÖNEMLİ: fast_info["previous_close"] güvenilmez (bazen dünkü gerçek kapanışı
+    değil alakasız bir değer döndürür → yanlış % değişim). Bu yüzden referans
+    kapanışı her zaman GEÇMİŞ VERİDEN (dünkü resmi kapanış) hesaplıyoruz.
+    """
     try:
         t = yf.Ticker(ticker)
-        price = prev = currency = None
 
-        # fast_info hızlı ve hafiftir; sürüme göre erişimi koruyoruz
+        # Referans = dünkü resmi kapanış; güncel = bugünkü kapanış/son işlem
+        hist = t.history(period="5d")
+        if hist.empty:
+            return None
+        closes = hist["Close"].dropna()
+        if closes.empty:
+            return None
+        price = float(closes.iloc[-1])
+        prev = float(closes.iloc[-2]) if len(closes) >= 2 else price
+        currency = "USD"
+
+        # fast_info ile (varsa) daha güncel anlık fiyatı ve para birimini al
         try:
             info = t.fast_info
-            price = _safe_fast_info(info, "last_price", "lastPrice")
-            prev = _safe_fast_info(info, "previous_close", "previousClose")
-            currency = _safe_fast_info(info, "currency")
+            live = _safe_fast_info(info, "last_price", "lastPrice")
+            if live:
+                price = float(live)
+            cur = _safe_fast_info(info, "currency")
+            if cur:
+                currency = cur
         except Exception:
             pass
 
-        if price is None:
-            # Yedek: kısa geçmiş veri (sürümden bağımsız, güvenilir)
-            hist = t.history(period="2d")
-            if hist.empty:
-                return None
-            price = float(hist["Close"].iloc[-1])
-            prev = float(hist["Close"].iloc[0]) if len(hist) > 1 else price
-
-        price = float(price)
-        prev = float(prev) if prev else None
-        currency = currency or "USD"
-
-        change_pct = None
-        if prev:
-            change_pct = round((price - prev) / prev * 100, 2)
+        change_pct = round((price - prev) / prev * 100, 2) if prev else None
+        # Verinin tazeliği: son barın tarihi (yfinance ~15 dk gecikmeli olabilir)
+        as_of = str(closes.index[-1].date()) if len(closes) else None
 
         return {
             "ticker": ticker,
-            "price": round(float(price), 4),
-            "previous_close": round(float(prev), 4) if prev else None,
+            "price": round(price, 4),
+            "previous_close": round(prev, 4),
             "change_pct": change_pct,
             "currency": currency,
+            "as_of": as_of,
+            "note": "Veri ~15 dk gecikmeli olabilir; seans sonrası hareketleri içermez.",
             "source": "yfinance",
         }
     except Exception as exc:  # ağ/parsing dahil her şeyi yutuyoruz
@@ -188,6 +252,65 @@ def get_price(symbol: str) -> Optional[Dict[str, Any]]:
     if quote:
         quote["symbol"] = symbol.upper()
     return quote
+
+
+def get_technicals(symbol: str) -> Optional[Dict[str, Any]]:
+    """
+    Bir sembol için temel teknik göstergeleri hesaplar:
+    RSI(14), SMA20/50/200, son fiyatın ortalamalara göre konumu, hacim eğilimi.
+    """
+    kind, ticker = normalize_symbol(symbol)
+    try:
+        if kind == "crypto":
+            # Kripto için yfinance USD paritesini dene (BTC-USD gibi)
+            ticker = f"{symbol.upper()}-USD"
+        t = yf.Ticker(ticker)
+        hist = t.history(period="1y")
+        if hist.empty or len(hist) < 20:
+            return None
+
+        close = hist["Close"]
+        volume = hist["Volume"]
+        last = float(close.iloc[-1])
+
+        # RSI(14)
+        delta = close.diff()
+        gain = delta.clip(lower=0).rolling(window=14).mean()
+        loss = (-delta.clip(upper=0)).rolling(window=14).mean()
+        rs = gain / loss.replace(0, float("nan"))
+        rsi_series = 100 - (100 / (1 + rs))
+        rsi = float(rsi_series.iloc[-1]) if not rsi_series.empty else None
+
+        def sma(n: int) -> Optional[float]:
+            if len(close) >= n:
+                return round(float(close.rolling(window=n).mean().iloc[-1]), 2)
+            return None
+
+        sma20, sma50, sma200 = sma(20), sma(50), sma(200)
+
+        # Hacim eğilimi: son 5 gün ortalaması vs 20 gün ortalaması
+        vol_trend = None
+        if len(volume) >= 20:
+            v5 = float(volume.tail(5).mean())
+            v20 = float(volume.tail(20).mean())
+            if v20:
+                vol_trend = round((v5 - v20) / v20 * 100, 1)
+
+        def pos(ma: Optional[float]) -> Optional[float]:
+            return round((last - ma) / ma * 100, 1) if ma else None
+
+        return {
+            "symbol": symbol.upper(),
+            "last": round(last, 4),
+            "rsi14": round(rsi, 1) if rsi is not None else None,
+            "sma20": sma20, "sma50": sma50, "sma200": sma200,
+            "vs_sma50_pct": pos(sma50),     # +ise 50 günlük ortalamanın üstünde
+            "vs_sma200_pct": pos(sma200),
+            "volume_trend_pct": vol_trend,  # +ise hacim artıyor
+        }
+    except Exception as exc:
+        logger.warning("Teknik gösterge hesaplanamadı (%s): %s", symbol, exc)
+        return None
 
 
 def get_prices(symbols: List[str]) -> Dict[str, Dict[str, Any]]:
@@ -253,29 +376,40 @@ def _parse_feed(url: str, limit: int = 20) -> List[Dict[str, Any]]:
 def get_news_for_symbol(symbol: str) -> List[Dict[str, Any]]:
     """
     Bir sembolle ilgili haberleri RSS kaynaklarından filtreleyerek getirir.
-    Basit anahtar kelime eşleşmesi kullanılır (başlık/özet içinde sembol geçiyorsa).
+    Sembol kodunun yanında ŞİRKET ADINI da arar (ör. KCHOL → 'Koç Holding'),
+    böylece haberlerde kod değil isim geçtiğinde de yakalanır.
+    """
+    max_articles = _settings.get("news", {}).get("max_articles_per_symbol", 5)
+    aliases = [a.upper() for a in symbol_aliases(symbol)]
+    return search_news(aliases, max_articles=max_articles)
+
+
+def search_news(query, max_articles: int = 8) -> List[Dict[str, Any]]:
+    """
+    Serbest metin haber araması. query bir string veya anahtar kelime listesidir;
+    başlık/özette herhangi biri geçen haberleri döndürür. Şirket/grup/tema
+    haberlerini (ör. 'Koç', 'yapay zeka', 'faiz') bulmak için kullanılır.
     """
     sources = _settings.get("news_sources", {}).get("rss", [])
-    max_articles = _settings.get("news", {}).get("max_articles_per_symbol", 5)
-
-    keyword = symbol.upper().replace(".IS", "")
-    # Kriptolar için tam isim de atransak
-    aliases = [keyword]
-    kind, ticker = normalize_symbol(symbol)
-    if kind == "crypto":
-        aliases.append(ticker.upper())  # ör. BITCOIN
+    sources = sources + _settings.get("news_sources", {}).get("general_rss", [])
+    terms = [query] if isinstance(query, str) else list(query)
+    terms = [t.upper() for t in terms if t]
 
     matched: List[Dict[str, Any]] = []
+    seen_titles = set()
     for url in sources:
         for art in _parse_feed(url):
             haystack = f"{art['title']} {art['summary']}".upper()
-            if any(alias in haystack for alias in aliases):
+            if any(term in haystack for term in terms):
+                if art["title"] in seen_titles:
+                    continue
+                seen_titles.add(art["title"])
                 matched.append(art)
             if len(matched) >= max_articles:
                 break
         if len(matched) >= max_articles:
             break
-    logger.debug("%s için %d haber bulundu", symbol, len(matched))
+    logger.debug("Haber araması %s → %d sonuç", terms, len(matched))
     return matched[:max_articles]
 
 

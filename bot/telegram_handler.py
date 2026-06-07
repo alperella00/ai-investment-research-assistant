@@ -341,10 +341,8 @@ async def natural_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     user = user_manager.load_user(chat_id) or user_manager.create_user(chat_id)
     await update.effective_chat.send_action("typing")
 
-    # Portföy fiyatlarını bağlam olarak ekle
-    symbols = [h["symbol"] for h in user.get("portfolio", [])]
-    prices = await asyncio.to_thread(data_fetcher.get_prices, symbols) if symbols else {}
-    answer = await asyncio.to_thread(analyzer.analyze_question, text, user, prices)
+    # TOOL USE: Claude gerektikçe canlı fiyat/haber/teknik çeker veya portföyü düzenler
+    answer = await asyncio.to_thread(analyzer.chat_with_tools, text, user, chat_id)
     await _reply(update, answer)
 
 

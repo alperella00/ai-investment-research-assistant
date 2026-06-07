@@ -2,7 +2,9 @@
 python-telegram-bot==21.6
 
 # Claude API
-anthropic==0.39.0
+# Not: 0.39.0 eski httpx'in kaldırdığı 'proxies' argümanını gönderiyor ve
+# httpx>=0.28 ile çöküyor; 0.40+ bunu düzeltir.
+anthropic>=0.40
 
 # Veri kaynakları
 # Not: 0.2.x sürümleri Yahoo'dan 429 (Too Many Requests) alıyor;

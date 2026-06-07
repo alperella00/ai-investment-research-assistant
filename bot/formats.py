@@ -73,8 +73,17 @@ def portfolio_summary(user: Dict[str, Any], prices: Dict[str, Any]) -> str:
         qty = h["quantity"]
         cost = h["cost"]
         p = prices.get(sym)
+        # Canlı fiyat yoksa elle girilen manuel fiyatı (egzotik enstrüman) kullan
+        price = None
+        currency = ""
         if p:
             price = p["price"]
+            currency = p.get("currency", "")
+        elif h.get("manual_price") is not None:
+            price = h["manual_price"]
+            currency = "(manuel)"
+
+        if price is not None:
             value = price * qty
             cost_total = cost * qty
             pnl = value - cost_total
@@ -83,11 +92,11 @@ def portfolio_summary(user: Dict[str, Any], prices: Dict[str, Any]) -> str:
             total_cost += cost_total
             emoji = "🟢" if pnl >= 0 else "🔴"
             lines.append(
-                f"{emoji} *{sym}* | {qty} ad | güncel {price:g} {p.get('currency','')}\n"
+                f"{emoji} *{sym}* | {qty:g} ad | güncel {price:g} {currency}\n"
                 f"   K/Z: {pnl:+.2f} ({pnl_pct:+.1f}%)"
             )
         else:
-            lines.append(f"⚪ *{sym}* | {qty} ad | fiyat alınamadı")
+            lines.append(f"⚪ *{sym}* | {qty:g} ad | fiyat alınamadı")
 
     if total_cost:
         total_pnl = total_value - total_cost
