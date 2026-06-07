@@ -1,0 +1,27 @@
+# Telegram bot (async, v20+)
+python-telegram-bot==21.6
+
+# Claude API
+anthropic==0.39.0
+
+# Veri kaynakları
+# Not: 0.2.x sürümleri Yahoo'dan 429 (Too Many Requests) alıyor;
+# güncel sürüm crumb/cookie + curl_cffi ile bunu çözüyor.
+yfinance>=0.2.55
+curl_cffi>=0.7.0
+requests==2.32.3
+
+# Haber tarama
+feedparser==6.0.11
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# Zamanlayıcı
+APScheduler==3.10.4
+
+# Yapılandırma & ortam değişkenleri
+PyYAML==6.0.2
+python-dotenv==1.0.1
+
+# Zaman dilimi
+pytz==2024.2

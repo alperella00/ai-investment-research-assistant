@@ -1,0 +1,22 @@
+# Ortam ve sırlar
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Loglar ve çalışma zamanı verisi
+logs/
+data/
+
+# Kullanıcı verileri (template hariç)
+config/users/*.json
+!config/users/user_template.json
+
+# OS / editör
+.DS_Store
+.idea/
+.vscode/

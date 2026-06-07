@@ -1,0 +1,16 @@
+services:
+  asistan:
+    build: .
+    container_name: ai-investment-research-assistant
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Istanbul
+    volumes:
+      # Kullanıcı verisi, loglar ve ayarlar kalıcı olsun
+      - ./config/users:/app/config/users
+      - ./config/settings.yaml:/app/config/settings.yaml:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+    # Telegram long-polling kullandığı için port açmaya gerek yok

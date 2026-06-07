@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────
+# Yatırım Asistanı — Genel Ayarlar
+# API anahtarları burada DEĞİL, .env dosyasında tutulur.
+# ─────────────────────────────────────────────
+
+# Claude (Anthropic) ayarları
+claude:
+  model: "claude-haiku-4-5-20251001"   # Maliyet/hız optimize Haiku 4.5
+  max_tokens: 1024
+  temperature: 0.4
+
+# Haber tarama ayarları
+news:
+  scan_interval_minutes: 120     # Kaç dakikada bir tarama yapılsın
+  importance_threshold: 7        # 1-10 arası; bu eşiği geçen haberler bildirilir
+  max_articles_per_symbol: 5     # Sembol başına işlenecek azami haber sayısı
+  active_hours:                  # Tarama yalnızca bu saat aralığında çalışır (TR saati)
+    start: 9
+    end: 23
+
+# Fiyat alarmı ayarları
+alarms:
+  check_interval_minutes: 15
+
+# Zamanlama (Türkiye saati, UTC+3)
+schedule:
+  timezone: "Europe/Istanbul"
+  morning_briefing: "08:00"
+  evening_summary: "18:00"
+  weekly_report_day: "sun"       # Pazar
+  weekly_report_time: "20:00"
+
+# Veri çekme ayarları
+data:
+  request_timeout_seconds: 15
+  rate_limit_sleep_seconds: 1.0  # Ardışık istekler arası bekleme
+
+# Piyasa endeksleri (brifing için kullanılır)
+market_indices:
+  global:
+    "S&P 500": "^GSPC"
+    "Nasdaq": "^IXIC"
+  turkey:
+    "BIST 100": "XU100.IS"
+  fx:
+    "USD/TRY": "USDTRY=X"
+    "EUR/TRY": "EURTRY=X"
+  gold:
+    "Ons Altın": "GC=F"
+  crypto:
+    "BTC": "bitcoin"
+    "ETH": "ethereum"
+
+# RSS haber kaynakları
+# Not: Reuters ve KAP eski RSS uç noktaları kapandı; aşağıdakiler test edilip
+# çalışır durumda. Türkçe (Investing TR, BloombergHT, Dünya, Ekonomist) +
+# global (CNBC, Yahoo Finance, NASDAQ) karışımı.
+news_sources:
+  rss:
+    - "https://tr.investing.com/rss/news_25.rss"      # Investing TR - hisse/genel
+    - "https://tr.investing.com/rss/news_301.rss"     # Investing TR - kripto
+    - "https://www.bloomberght.com/rss"               # BloombergHT
+    - "https://www.dunya.com/rss"                      # Dünya
+    - "https://finance.yahoo.com/news/rssindex"        # Yahoo Finance
+    - "https://www.cnbc.com/id/10000664/device/rss/rss.html"  # CNBC Finance
+  # Genel (sembolden bağımsız) brifing kaynakları
+  general_rss:
+    - "https://www.cnbc.com/id/100003114/device/rss/rss.html" # CNBC Top News
+    - "https://tr.investing.com/rss/news_25.rss"       # Investing TR
+    - "https://feeds.content.dowjones.io/public/rss/mw_topstories"  # MarketWatch

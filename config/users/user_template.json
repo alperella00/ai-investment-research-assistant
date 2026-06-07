@@ -1,0 +1,19 @@
+{
+  "chat_id": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+  "name": "Alper",
+  "risk_profile": "orta-yüksek",
+  "notification_preference": "high",
+  "briefing_enabled": true,
+  "created_at": "2026-06-07T08:00:00+03:00",
+  "portfolio": [
+    { "symbol": "THYAO", "quantity": 100, "cost": 250.0 },
+    { "symbol": "ASELS", "quantity": 50,  "cost": 60.0 },
+    { "symbol": "NVDA",  "quantity": 10,  "cost": 120.0 },
+    { "symbol": "AMD",   "quantity": 15,  "cost": 140.0 },
+    { "symbol": "BTC",   "quantity": 0.05, "cost": 60000.0 },
+    { "symbol": "ETH",   "quantity": 1.0,  "cost": 3000.0 },
+    { "symbol": "ALTIN", "quantity": 5,   "cost": 2400.0 },
+    { "symbol": "DOLAR", "quantity": 1000, "cost": 32.0 }
+  ],
+  "alarms": []
+}
